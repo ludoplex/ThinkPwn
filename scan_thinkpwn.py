@@ -151,14 +151,14 @@ def has_guid(file_path, guid_list, find_any = False):
     with open(file_path, 'rb') as fd:
 
         data, guid_found = fd.read(), []
-        
+
         # lookup for one or all of the specified GUIDs inside file contents
         for guid in guid_list:
 
             if data.find(guid) != -1:
 
                 if find_any: return True
-                if not guid in guid_found: guid_found.append(guid)
+                if guid not in guid_found: guid_found.append(guid)
 
         return len(guid_found) == len(guid_list)
 
@@ -229,16 +229,16 @@ def match_func(r2, addr):
     bb_all = []
 
     # obtain list of basic blocks for given function
-    bb_list = r2.cmdj('afbj %s' % addr)
+    bb_list = r2.cmdj(f'afbj {addr}')
     if len(bb_list) != BB_COUNT: return False
-    
+
     for bb in bb_list:
 
         insn_num = bb['ninstr']
-    
+
         # check basic block for proper amount of instruction
         if insn_num > MAX_INSN or insn_num < MIN_INSN:
-            
+
             return False
 
         # analyze basic block
@@ -253,12 +253,9 @@ def match_func(r2, addr):
 
     if bb_all[1].calls_total != 1 or bb_all[1].calls_matched != 1: return False
     if bb_all[1].glob_reads  != 1 or bb_all[1].glob_writes   != 0: return False
-    
+
     if bb_all[2].calls_total != 0 or bb_all[2].calls_matched != 0: return False
-    if bb_all[2].glob_reads  != 0 or bb_all[2].glob_writes   != 0: return False
-    
-    # vulnerable function was matched!
-    return True
+    return bb_all[2].glob_reads == 0 and bb_all[2].glob_writes == 0
 
 class Watcher:
     ''' This class solves two problems with multithreaded
@@ -314,7 +311,7 @@ def scan_file(file_path):
         # check for vulnerable function
         if match_func(r2, addr):
 
-            print('VULNERABLE FUNCTION: %s' % addr)
+            print(f'VULNERABLE FUNCTION: {addr}')
 
             ret.append(addr)
 
@@ -369,11 +366,10 @@ def main():
     if sys.platform != 'win32': Watcher()
 
     # run worker threads
-    for i in range(WORKERS):
-
-         t = Thread(target = worker)
-         t.daemon = True
-         t.start()
+    for _ in range(WORKERS):
+        t = Thread(target = worker)
+        t.daemon = True
+        t.start()
 
     # scan files in target directory
     scan_dir(sys.argv[1])
@@ -389,7 +385,7 @@ def main():
 
         for addr in matched:
 
-            print(' * %s' % addr)
+            print(f' * {addr}')
 
     print('')
 
